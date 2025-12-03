@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Linux Ricing — Theme Converter (Standalone)</title>
+  <style>
+    :root{--bg:#0b0f14;--panel:#0f1720;--accent:#88c0d0;--muted:#9aa6b2}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#071018, #0b1016);color:#e6eef6}
+    .wrap{max-width:1100px;margin:24px auto;padding:18px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 10px 30px rgba(2,6,23,0.6);}
+    header{display:flex;gap:16px;align-items:center}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:6px 0 18px;color:var(--muted);font-size:13px}
+    .controls{display:grid;grid-template-columns:280px 1fr;gap:18px}
+    .panel{background:rgba(255,255,255,0.02);padding:14px;border-radius:10px}
+    .uploader{display:flex;flex-direction:column;gap:8px}
+    input[type=file]{background:transparent;color:inherit}
+    .preview{display:flex;gap:12px;align-items:center}
+    canvas{max-width:100%;border-radius:8px;box-shadow:0 8px 20px rgba(2,6,23,0.6)}
+    .controls-grid{display:grid;gap:8px}
+    label{font-size:13px;color:var(--muted)}
+    select,input[type=range]{width:100%}
+    .btn-row{display:flex;gap:8px;margin-top:10px}
+    button{background:linear-gradient(180deg,var(--accent),#5eabb9);border:none;padding:8px 12px;border-radius:8px;color:#041016;cursor:pointer;font-weight:600}
+    .small{font-size:12px;padding:6px 8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted);font-size:13px}
+    .theme-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .theme-pill{padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.02);cursor:pointer;border:1px solid rgba(255,255,255,0.02)}
+    .theme-pill.active{outline:2px solid rgba(136,192,208,0.18)}
+    .row{display:flex;gap:12px;align-items:center}
+    footer{margin-top:18px;font-size:12px;color:var(--muted)}
+    @media (max-width:900px){.controls{grid-template-columns:1fr;}.wrap{margin:12px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Linux Ricing — Theme Converter</h1>
+        <p class="lead">Upload a wallpaper, convert it toward the Nord palette and apply popular ricing theme colour corrections. Single-file — open in your browser.</p>
+      </div>
+    </header>
+
+    <div class="controls">
+      <div class="panel">
+        <div class="uploader">
+          <label>Upload background image (jpg, png)</label>
+          <input id="file" type="file" accept="image/*">
+
+          <div class="row" style="margin-top:8px">
+            <label style="min-width:86px">Method</label>
+            <select id="method">
+              <option value="reinhard">Color transfer (Reinhard)</option>
+              <option value="palette">Palette mapping</option>
+              <option value="none">No colour transform (preview only)</option>
+            </select>
+          </div>
+
+          <div class="controls-grid">
+            <div>
+              <label>Theme</label>
+              <select id="themeSelect">
+                <option value="nord">Nord (default)</option>
+                <option value="dracula">Dracula</option>
+                <option value="gruvbox">Gruvbox Dark</option>
+                <option value="solarized">Solarized Dark</option>
+                <option value="catppuccin">Catppuccin</option>
+              </select>
+            </div>
+
+            <div>
+              <label>Strength</label>
+              <input id="strength" type="range" min="0" max="1" step="0.01" value="0.9">
+            </div>
+
+            <div>
+              <label>Brightness</label>
+              <input id="brightness" type="range" min="-100" max="100" value="0">
+            </div>
+
+            <div>
+              <label>Contrast</label>
+              <input id="contrast" type="range" min="-100" max="100" value="0">
+            </div>
+
+            <div>
+              <label>Saturation</label>
+              <input id="saturation" type="range" min="-100" max="100" value="0">
+            </div>
+
+          </div>
+
+          <div class="btn-row">
+            <button id="apply">Apply</button>
+            <button id="reset" class="small">Reset</button>
+            <button id="download" class="small">Download</button>
+          </div>
+
+          <div style="margin-top:10px">
+            <label>Quick theme pills</label>
+            <div class="theme-list" id="pills"></div>
+          </div>
+
+          <div style="margin-top:10px;font-size:12px;color:var(--muted)">
+            Works fully in-browser. Use for creating matching wallpaper or for extracting base palettes for your ricing. For best results: use high-res photos.
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="preview">
+          <canvas id="canvas" width="1200" height="675"></canvas>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div class="small" id="info">No image loaded</div>
+          <div class="small">Preview size: <span id="size">1200×675</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>Made for Linux ricing — wallpaper -> themed wallpaper</div>
+      <div>Exported image preserves dimensions. Try strength < 1 for subtler results.</div>
+    </div>
+
+    <footer>Want more palettes or auto-dotfiles generation? Ask and I'll extend it.</footer>
+  </div>
+
+<script>
+// --- palettes ---
+const THEMES = {
+  nord: ["#2E3440","#3B4252","#434C5E","#4C566A","#D8DEE9","#E5E9F0","#8FBCBB","#88C0D0"],
+  dracula: ["#282a36","#44475a","#6272a4","#8be9fd","#50fa7b","#ffb86c","#ff79c6","#f8f8f2"],
+  gruvbox: ["#1d2021","#282828","#3c3836","#fb4934","#fabd2f","#b8bb26","#83a598","#ebdbb2"],
+  solarized: ["#073642","#002b36","#586e75","#268bd2","#2aa198","#b58900","#cb4b16","#839496"],
+  catppuccin: ["#1e1e2e","#313244","#494d64","#c6d0f5","#f2cdcd","#f5c2e7","#cdd6f4","#89b4fa"]
+};
+
+// --- helpers: rgb <-> XYZ <-> Lab conversions (sRGB, D65) ---
+function srgbToLinear(c){c = c/255; return (c<=0.04045)? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);} 
+function linearToSrgb(c){return (c<=0.0031308)? 12.92*c : 1.055*Math.pow(c,1/2.4)-0.055;}
+
+function rgbToXyz(r,g,b){
+  r = srgbToLinear(r); g = srgbToLinear(g); b = srgbToLinear(b);
+  // sRGB D65
+  const x = r*0.4124564 + g*0.3575761 + b*0.1804375;
+  const y = r*0.2126729 + g*0.7151522 + b*0.0721750;
+  const z = r*0.0193339 + g*0.1191920 + b*0.9503041;
+  return [x,y,z];
+}
+function xyzToRgb(x,y,z){
+  let r = x* 3.2404542 + y*-1.5371385 + z*-0.4985314;
+  let g = x*-0.9692660 + y* 1.8760108 + z* 0.0415560;
+  let b = x* 0.0556434 + y*-0.2040259 + z* 1.0572252;
+  r = linearToSrgb(r); g = linearToSrgb(g); b = linearToSrgb(b);
+  return [clamp(Math.round(r*255)), clamp(Math.round(g*255)), clamp(Math.round(b*255))];
+}
+
+function f(t){return (t>0.008856)? Math.cbrt(t) : (7.787037*t + 16/116);} 
+function finv(t){const t3 = t*t*t; return (t3>0.008856)? t3 : (t-16/116)/7.787037;}
+
+function xyzToLab(x,y,z){
+  // D65 reference
+  const xr = x/0.95047, yr = y/1.00000, zr = z/1.08883;
+  const fx = f(xr), fy = f(yr), fz = f(zr);
+  const L = 116*fy - 16;
+  const a = 500*(fx - fy);
+  const b = 200*(fy - fz);
+  return [L,a,b];
+}
+
+function labToXyz(L,a,b){
+  const fy = (L+16)/116; const fx = a/500 + fy; const fz = fy - b/200;
+  const xr = finv(fx), yr = finv(fy), zr = finv(fz);
+  const x = xr*0.95047, y = yr*1.00000, z = zr*1.08883;
+  return [x,y,z];
+}
+
+function rgbToLab(r,g,b){const [x,y,z]=rgbToXyz(r,g,b); return xyzToLab(x,y,z);} 
+function labToRgb(L,a,b){const [x,y,z]=labToXyz(L,a,b); return xyzToRgb(x,y,z);} 
+
+function clamp(v,min=0,max=255){return Math.min(max,Math.max(min,Math.round(v)))}
+
+// --- utilities ---
+function hexToRgb(hex){hex = hex.replace('#',''); if(hex.length===3) hex = hex.split('').map(s=>s+s).join(''); const i=parseInt(hex,16); return [ (i>>16)&255, (i>>8)&255, i&255 ]; }
+function avg(arr){return arr.reduce((a,b)=>a+b,0)/arr.length}
+
+// --- Core algorithms ---
+function reinhardTransfer(srcPixels, width, height, targetPalette, strength=1){
+  // compute mean/std in Lab for source and target
+  let n = width*height;
+  let sumL=0,sumA=0,sumB=0; let sL=0,sA=0,sB=0;
+  // compute source stats
+  for(let i=0;i<srcPixels.length;i+=4){
+    const r = srcPixels[i], g=srcPixels[i+1], b=srcPixels[i+2];
+    const [L,a,bv] = rgbToLab(r,g,b);
+    sumL += L; sumA += a; sumB += bv;
+  }
+  const meanLs = sumL/n, meanAs = sumA/n, meanBs = sumB/n;
+  for(let i=0;i<srcPixels.length;i+=4){
+    const [L,a,bv] = rgbToLab(srcPixels[i],srcPixels[i+1],srcPixels[i+2]);
+    sL += (L-meanLs)*(L-meanLs);
+    sA += (a-meanAs)*(a-meanAs);
+    sB += (bv-meanBs)*(bv-meanBs);
+  }
+  const stdLs = Math.sqrt(sL/n), stdAs = Math.sqrt(sA/n), stdBs = Math.sqrt(sB/n);
+
+  // get target mean/std by sampling palette colors
+  const labT = targetPalette.map(h=>hexToRgb(h)).map(([r,g,b])=>rgbToLab(r,g,b));
+  const meanLt = avg(labT.map(x=>x[0]));
+  const meanAt = avg(labT.map(x=>x[1]));
+  const meanBt = avg(labT.map(x=>x[2]));
+  const stdLt = std(labT.map(x=>x[0]));
+  const stdAt = std(labT.map(x=>x[1]));
+  const stdBt = std(labT.map(x=>x[2]));
+
+  // transform each pixel
+  const out = new Uint8ClampedArray(srcPixels.length);
+  for(let i=0;i<srcPixels.length;i+=4){
+    const [L,a,bv] = rgbToLab(srcPixels[i],srcPixels[i+1],srcPixels[i+2]);
+    // transfer
+    let Lp = ((L - meanLs) * (stdLt / (stdLs||1e-6))) + meanLt;
+    let ap = ((a - meanAs) * (stdAt / (stdAs||1e-6))) + meanAt;
+    let bp = ((bv - meanBs) * (stdBt / (stdBs||1e-6))) + meanBt;
+    // blend with original by strength
+    const Lf = L*(1-strength) + Lp*strength;
+    const af = a*(1-strength) + ap*strength;
+    const bf = bv*(1-strength) + bp*strength;
+    const [r2,g2,b2] = labToRgb(Lf,af,bf);
+    out[i]=r2; out[i+1]=g2; out[i+2]=b2; out[i+3]=srcPixels[i+3];
+  }
+  return out;
+}
+
+function std(arr){const m=avg(arr); return Math.sqrt(avg(arr.map(v=> (v-m)*(v-m) )));} 
+
+function paletteMap(srcPixels, width, height, palette, strength=1){
+  // map each pixel to nearest color in Lab space then blend
+  const palLab = palette.map(h=>hexToRgb(h)).map(([r,g,b])=>rgbToLab(r,g,b));
+  const out = new Uint8ClampedArray(srcPixels.length);
+  for(let i=0;i<srcPixels.length;i+=4){
+    const [L,a,bv] = rgbToLab(srcPixels[i],srcPixels[i+1],srcPixels[i+2]);
+    // find nearest palette color
+    let bestIdx=0, bestD=Infinity;
+    for(let j=0;j<palLab.length;j++){
+      const d = (L-palLab[j][0])**2 + (a-palLab[j][1])**2 + (bv-palLab[j][2])**2;
+      if(d<bestD){bestD=d;bestIdx=j}
+    }
+    const [rT,gT,bT] = hexToRgb(palette[bestIdx]);
+    // blend in RGB space (safer visually)
+    out[i] = Math.round(srcPixels[i]*(1-strength) + rT*strength);
+    out[i+1] = Math.round(srcPixels[i+1]*(1-strength) + gT*strength);
+    out[i+2] = Math.round(srcPixels[i+2]*(1-strength) + bT*strength);
+    out[i+3] = srcPixels[i+3];
+  }
+  return out;
+}
+
+function applyBCS(pixels, brightness=0, contrast=0, saturation=0){
+  // brightness/contrast in [-100,100], saturation [-100,100]
+  const out = new Uint8ClampedArray(pixels.length);
+  const cFactor = (259*(contrast+255))/(255*(259-contrast));
+  for(let i=0;i<pixels.length;i+=4){
+    let r = pixels[i], g = pixels[i+1], b = pixels[i+2];
+    // brightness
+    r += brightness; g += brightness; b += brightness;
+    // contrast
+    r = cFactor*(r-128)+128; g = cFactor*(g-128)+128; b = cFactor*(b-128)+128;
+    // saturation (approx) convert to HSL luminance and mix
+    const gray = 0.299*r + 0.587*g + 0.114*b;
+    const satFactor = 1 + saturation/100;
+    r = gray + (r - gray) * satFactor;
+    g = gray + (g - gray) * satFactor;
+    b = gray + (b - gray) * satFactor;
+    out[i]=clamp(r); out[i+1]=clamp(g); out[i+2]=clamp(b); out[i+3]=pixels[i+3];
+  }
+  return out;
+}
+
+// --- UI wiring ---
+const fileInput = document.getElementById('file');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const methodEl = document.getElementById('method');
+const themeSelect = document.getElementById('themeSelect');
+const strengthEl = document.getElementById('strength');
+const brightnessEl = document.getElementById('brightness');
+const contrastEl = document.getElementById('contrast');
+const saturationEl = document.getElementById('saturation');
+const applyBtn = document.getElementById('apply');
+const resetBtn = document.getElementById('reset');
+const downloadBtn = document.getElementById('download');
+const info = document.getElementById('info');
+const sizeEl = document.getElementById('size');
+const pillsDiv = document.getElementById('pills');
+
+let originalImage = null; // ImageBitmap
+let originalPixels = null; // ImageData
+
+// populate pills
+Object.keys(THEMES).forEach(key=>{
+  const pill = document.createElement('div'); pill.className='theme-pill'; pill.textContent = key; pill.onclick = ()=>{ themeSelect.value=key; document.querySelectorAll('.theme-pill').forEach(p=>p.classList.remove('active')); pill.classList.add('active'); };
+  pillsDiv.appendChild(pill);
+});
+
+fileInput.addEventListener('change', async (ev)=>{
+  const f = ev.target.files[0]; if(!f) return;
+  const url = URL.createObjectURL(f);
+  const img = await createImageBitmap(await fetch(url).then(r=>r.blob()));
+  URL.revokeObjectURL(url);
+  originalImage = img;
+  fitCanvasToImage(img);
+  ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  originalPixels = ctx.getImageData(0,0,canvas.width,canvas.height);
+  info.textContent = `Loaded: ${f.name}`;
+  sizeEl.textContent = `${img.width}×${img.height}`;
+});
+
+function fitCanvasToImage(img){
+  const maxW = Math.min(window.innerWidth-400, 1400) || 1200;
+  const aspect = img.width / img.height;
+  let w = Math.min(img.width, maxW);
+  let h = Math.round(w / aspect);
+  if(h>800){ h=800; w=Math.round(h*aspect);} 
+  canvas.width = w; canvas.height = h;
+}
+
+applyBtn.addEventListener('click', ()=>{ if(!originalImage){ alert('Please upload an image first'); return; } applyTransform(); });
+resetBtn.addEventListener('click', ()=>{ if(!originalImage) return; ctx.drawImage(originalImage,0,0,canvas.width,canvas.height); originalPixels = ctx.getImageData(0,0,canvas.width,canvas.height); info.textContent = 'Reset to original'; });
+downloadBtn.addEventListener('click', ()=>{ const link = document.createElement('a'); link.download = 'themed-wallpaper.png'; link.href = canvas.toDataURL('image/png'); link.click(); });
+
+function applyTransform(){
+  const method = methodEl.value;
+  const theme = themeSelect.value;
+  const strength = parseFloat(strengthEl.value);
+  const brightness = parseInt(brightnessEl.value);
+  const contrast = parseInt(contrastEl.value);
+  const saturation = parseInt(saturationEl.value);
+  // start from original image pixels to avoid compounding
+  ctx.drawImage(originalImage,0,0,canvas.width,canvas.height);
+  let imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  let out;
+  if(method === 'reinhard'){
+    out = reinhardTransfer(imgData.data, canvas.width, canvas.height, THEMES[theme], strength);
+  } else if(method === 'palette'){
+    out = paletteMap(imgData.data, canvas.width, canvas.height, THEMES[theme], strength);
+  } else {
+    out = new Uint8ClampedArray(imgData.data);
+  }
+  // apply BCS
+  out = applyBCS(out, brightness, contrast, saturation);
+  // put back
+  const outData = new ImageData(out, canvas.width, canvas.height);
+  ctx.putImageData(outData, 0, 0);
+  info.textContent = `Applied ${method} -> ${theme} (strength ${strength})`;
+}
+
+// keyboard shortcut: space to apply
+window.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); applyTransform(); }});
+
+</script>
+</body>
+</html>
